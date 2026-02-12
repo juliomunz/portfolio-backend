@@ -42,19 +42,19 @@ const contactLimiter = rateLimit({
 // Configurar Email
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
+  port: 587,
+  secure: false,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASSWORD
   },
   tls: {
-    // Esto ayuda si Render tiene problemas con los certificados de Google
-    rejectUnauthorized: false 
+    rejectUnauthorized: false,
+    ciphers: 'SSLv3'
   },
-  logger: true, // Imprimir logs en consola
-  debug: true,  // Incluir detalles técnicos del socket
-  connectionTimeout: 10000, // Fallar rápido si no conecta en 10s
+  logger: true,
+  debug: true,
+  connectionTimeout: 10000,
 });
 
 console.log("🕵️‍♂️ Probando conexión SMTP con Gmail...");
