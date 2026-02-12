@@ -58,6 +58,14 @@ const contactSchema = new mongoose.Schema({
 
 const Contact = mongoose.model('Contact', contactSchema);
 
+// Esquema para Suscriptores
+const subscriberSchema = new mongoose.Schema({
+  email: { type: String, required: true, unique: true },
+  date: { type: Date, default: Date.now }
+});
+
+const Subscriber = mongoose.model('Subscriber', subscriberSchema);
+
 // --- RUTAS ---
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', dbState: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected' });
@@ -116,6 +124,36 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
   } catch (error) {
     console.error('❌ Error procesando contacto:', error.message);
     res.status(500).json({ success: false, message: 'Error interno al procesar tu mensaje.' });
+  }
+});
+
+// Ruta para Suscripción al Newsletter
+app.post('/api/subscribe', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Validación simple de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      return res.status(400).json({ success: false, message: 'Email inválido' });
+    }
+
+    // Verificar si ya existe
+    const existingSubscriber = await Subscriber.findOne({ email });
+    if (existingSubscriber) {
+      return res.status(400).json({ success: false, message: 'Este email ya está suscrito.' });
+    }
+
+    // Guardar en BD
+    const newSubscriber = new Subscriber({ email });
+    await newSubscriber.save();
+
+    console.log(`✅ Nuevo suscriptor: ${email}`);
+    res.json({ success: true, message: '¡Gracias por suscribirte!' });
+
+  } catch (error) {
+    console.error('❌ Error suscripción:', error.message);
+    res.status(500).json({ success: false, message: 'Error interno.' });
   }
 });
 
