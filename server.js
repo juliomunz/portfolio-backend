@@ -79,23 +79,42 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
     await newContact.save();
     console.log(`💾 Contacto guardado en BD: ${email}`);
     
-    // 2. Enviar Email vía Resend usando tu nuevo dominio
-    await resend.emails.send({
-      from: 'Portfolio <contacto@juliomunoz.dev>', // Tu dominio profesional
-      to: 'julio.mun.cor@gmail.com', 
-      replyTo: email,
-      subject: `🚀 Nuevo Mensaje: ${subject}`,
-      html: `
-        <h3>Tienes un nuevo mensaje de contacto</h3>
-        <p><strong>Nombre:</strong> ${name}</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Asunto:</strong> ${subject}</p>
-        <p><strong>Mensaje:</strong></p>
-        <p>${message}</p>
-      `
-    });
+    // 2. Enviar Emails vía Resend (En paralelo con Promise.all)
+    // El await espera a que AMBOS correos se envíen antes de seguir
+    await Promise.all([
+      // Correo para TI (Notificación)
+      resend.emails.send({
+        from: 'Portfolio <contacto@juliomunoz.dev>',
+        to: 'julio.mun.cor@gmail.com', 
+        replyTo: email,
+        subject: `🚀 Nuevo Mensaje: ${subject}`,
+        html: `
+          <h3>Tienes un nuevo mensaje de contacto</h3>
+          <p><strong>Nombre:</strong> ${name}</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Asunto:</strong> ${subject}</p>
+          <p><strong>Mensaje:</strong></p>
+          <p>${message}</p>
+        `
+      }),
 
-    console.log('📧 Notificación enviada exitosamente');
+      // Correo para el CLIENTE (Confirmación automática)
+      resend.emails.send({
+        from: 'Julio Muñoz <contacto@juliomunoz.dev>',
+        to: email, 
+        subject: 'Confirmación de recepción - Julio Muñoz',
+        html: `
+          <h3>¡Hola ${name}!</h3>
+          <p>He recibido tu mensaje correctamente respecto a: <strong>"${subject}"</strong>.</p>
+          <p>Te agradezco el interés. Revisaré los detalles y me pondré en contacto contigo lo antes posible.</p>
+          <br>
+          <p>Saludos cordiales,</p>
+          <p><strong>Julio Muñoz</strong><br>Software Engineer</p>
+        `
+      })
+    ]);
+
+    console.log('📧 Notificación y confirmación enviadas exitosamente');
     res.json({ success: true, message: '¡Mensaje recibido! Te contactaré pronto.' });
 
   } catch (error) {
