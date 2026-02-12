@@ -47,6 +47,23 @@ const transporter = nodemailer.createTransport({
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASSWORD
+  },
+  tls: {
+    // Esto ayuda si Render tiene problemas con los certificados de Google
+    rejectUnauthorized: false 
+  },
+  logger: true, // Imprimir logs en consola
+  debug: true,  // Incluir detalles técnicos del socket
+  connectionTimeout: 10000, // Fallar rápido si no conecta en 10s
+});
+
+console.log("🕵️‍♂️ Probando conexión SMTP con Gmail...");
+
+transporter.verify((error, success) => {
+  if (error) {
+    console.error("❌ ERROR CRÍTICO SMTP (Al iniciar):", error);
+  } else {
+    console.log("✅ CONEXIÓN SMTP EXITOSA: El servidor está listo para enviar correos.");
   }
 });
 
@@ -84,8 +101,10 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
     }
 
     // 1. Guardar en Base de Datos
+    console.log('💾 [2/4] Guardando en MongoDB...');
     const newContact = new Contact({ name, email, subject, message });
     await newContact.save();
+    console.log('✅ [2/4] Guardado en MongoDB OK');
     
     // 2. Preparar Emails
     const mailOptions = {
@@ -113,6 +132,8 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
         <br><p>Saludos,<br>Julio Muñoz</p>
       `
     };
+
+    console.log('📤 [3/4] Intentando conectar con Gmail para enviar correos...');
 
     // 3. Enviar Emails (En paralelo para más velocidad)
     await Promise.all([
