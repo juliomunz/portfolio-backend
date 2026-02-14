@@ -42,7 +42,7 @@ const contactLimiter = rateLimit({
   message: 'Demasiados intentos. Intenta más tarde.'
 });
 
-// --- MODELOS DE DATOS ---
+// Save Contact Model
 const contactSchema = new mongoose.Schema({
   name: String,
   email: String,
@@ -52,13 +52,22 @@ const contactSchema = new mongoose.Schema({
 });
 const Contact = mongoose.model('Contact', contactSchema);
 
+// Save Suscriber Model
 const subscriberSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   date: { type: Date, default: Date.now }
 });
 const Subscriber = mongoose.model('Subscriber', subscriberSchema);
 
-// --- RUTAS ---
+// Save Like Model
+const blogLikeSchema = new mongoose.Schema({
+  slug: { type: String, required: true, unique: true },
+  count: { type: Number, default: 0 }
+});
+
+const BlogLike = mongoose.model('BlogLike', blogLikeSchema);
+
+// RUTAS
 
 // Health Check
 app.get('/api/health', (req, res) => {
@@ -74,15 +83,12 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Todos los campos son requeridos' });
     }
 
-    // 1. Guardar en MongoDB
+    // 1. Save in MongoDB
     const newContact = new Contact({ name, email, subject, message });
     await newContact.save();
     console.log(`💾 Contacto guardado en BD: ${email}`);
     
-    // 2. Enviar Emails vía Resend (En paralelo con Promise.all)
-    // El await espera a que AMBOS correos se envíen antes de seguir
     await Promise.all([
-      // Correo para TI (Notificación)
       resend.emails.send({
         from: 'Portfolio <contacto@juliomunoz.dev>',
         to: 'julio.mun.cor@gmail.com', 
@@ -120,6 +126,37 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
   } catch (error) {
     console.error('❌ Error en /api/contact:', error.message);
     res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+  }
+});
+
+// Get Likes
+app.get('/api/blog/:slug/likes', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    let post = await BlogLike.findOne({ slug });
+    
+    // Si el post no existe en la BD aún, devolvemos 0
+    res.json({ likes: post ? post.count : 0 });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener likes' });
+  }
+});
+
+// ++ Likes
+app.patch('/api/blog/:slug/like', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    
+    // Usamos $inc para que MongoDB maneje el incremento de forma atómica
+    const updatedPost = await BlogLike.findOneAndUpdate(
+      { slug },
+      { $inc: { count: 1 } },
+      { new: true, upsert: true } // upsert crea el registro si no existe
+    );
+    
+    res.json({ success: true, likes: updatedPost.count });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al procesar el like' });
   }
 });
 
